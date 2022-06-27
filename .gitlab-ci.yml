@@ -13,6 +13,8 @@ services:
 
 #executar antes de qualquer script
 before_script:
+# faz autenticação no dockerhub por meio de variáveis criada em gitlab Configurações -> CI/CD
+- docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD 
 - docker info 
 
 #tarefa(job)
@@ -21,3 +23,5 @@ build-stage:
     stage: build
     script:
         - docker build -t minha-imagem .
+        - docker tag minha-imagem pvreboucas/minha-imagem:latest
+        - docker push pvreboucas/minha-imagem:latest

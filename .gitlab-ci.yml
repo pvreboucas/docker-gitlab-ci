@@ -1,0 +1,23 @@
+# Por default existem 3 passos a serem cumpridos:
+# 1- Passo de build
+# 2- Passo de test
+# 3- Passo de deploy(entrega)
+
+#imagem a ser usada na tarefa build-stage
+image: docker:stable
+
+#parâmetros para que o serviço do docker continue online
+services:
+#param para rodar uma imagem docker dentro de outro docker, pois o gitlab já usa um docker
+- docker:dind 
+
+#executar antes de qualquer script
+before_script:
+- docker info 
+
+#tarefa(job)
+build-stage:
+    # no stage indicamos qual dos 3 passos a tarefa(job) será chamada
+    stage: build
+    script:
+        - docker build -t minha-imagem .

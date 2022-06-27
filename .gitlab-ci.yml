@@ -1,0 +1,49 @@
+# Por padrão o gitlab tem o próprio executor (runner) que executa o pipeline,
+# mas se precisarmos estabelecer variáveis de ambientes para os nossos builds
+# podemos criar nossos próprios executores (runners).
+# Primeiro deve-se fazer ter a imagem do gitlab runner na máquina do gitlab ou em um volume compartilhado com o gitlab:
+#    docker pull gitlab/gitlab-runner:latest
+#
+# Em seguida executar a imagem:
+#   docker run -d --name gitlab-runner --restart always -v /home/paulovictor/gitlab-runner/config:/etc/gitlab-runner -v /var/run/docker.sock:/var/run/docker.sock gitlab/gitlab-runner:latest
+#
+# use o comando docker ps e veja se a imagem gitlab/gitlab-runner:latest está rodando
+# Por conseguinte vamos apresentar esse novo runner para o gitlab em Configurações -> CI/CD -> Runners,
+# vamos copiar o token que aparece na tela e registrá-lo no nosso runner em execução.
+#   docker exec -it gitlab-runner bash
+#   gitlab-runner register
+#   https://gitlab.com
+#   UI9876171TKfKTye_Uz12Vjykogy_
+#   docker
+#   pvreboucas/minha-imagem:latest
+#   exit
+#
+#Desta forma o runner está registrado na imagem docker do nosso pipeline do projeto, se entrarmos nas configurações do projeto -> CI/CD -> runners,
+# veremos o nosso runner recém criado. Todavia ainda precisamos apontá-lo para o nosso pipeline. Clique em editar o runner e em etiquetas (tags),
+# insira a tag que está atrelada ao pipeline: executor-tarefas.
+
+
+#imagem a ser usada na tarefa build-stage
+image: docker:stable
+
+#parâmetros para que o serviço do docker continue online
+services:
+#param para rodar uma imagem docker dentro de outro docker, pois o gitlab já usa um docker
+- docker:dind 
+
+#executar antes de qualquer script
+before_script:
+# faz autenticação no dockerhub por meio de variáveis criada em gitlab Configurações -> CI/CD
+- docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD 
+- docker info 
+
+#tarefa(job)
+build-stage:
+    # no stage indicamos qual dos 3 passos a tarefa(job) será chamada
+    stage: build
+    tags:
+        - executor-tarefas
+    script:
+        - docker build -t minha-imagem .
+        - docker tag minha-imagem pvreboucas/minha-imagem:latest
+        - docker push pvreboucas/minha-imagem:latest

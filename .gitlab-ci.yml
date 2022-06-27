@@ -1,0 +1,5 @@
+# pode ser dado qualquer nome para os jobs, no exemplo abaixo o job recebe o nome traduzido por tarefa1
+tarefa1:
+    script:
+    - echo "hello world"
+    - echo date

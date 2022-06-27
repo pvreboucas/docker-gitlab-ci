@@ -1,0 +1,5 @@
+# Este arquivo representa o pipeline do projeto 
+
+job:
+    script:
+        - echo "hello world"

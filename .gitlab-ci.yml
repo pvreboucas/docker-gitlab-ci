@@ -1,0 +1,99 @@
+#imagem a ser usada na tarefa build-stage
+image: docker:stable
+
+#chama-se esta chave caso queira adicionar outras stages no pipeline que não sejam as que são padrão (build, test e deploy).
+#não pode designar o mesmo stage para jobs diferentes em uma mesma pipeline
+stages:
+    - pre-build
+    - build
+    - test
+    - deploy
+
+# as chaves "services" e "before_script" foram movidas para o job build-docker pois não é necessário chamá-las para o job build_project
+
+#tarefa(job)
+build-docker:
+    #parâmetros para que o serviço do docker continue online
+    services:
+    #param para rodar uma imagem docker dentro de outro docker, pois o gitlab já usa um docker
+    - docker:dind 
+
+    #executar antes de qualquer script
+    before_script:
+    # faz autenticação no dockerhub por meio de variáveis criada em gitlab Configurações -> CI/CD
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD 
+    - docker info 
+    # no stage indicamos qual dos 3 passos a tarefa(job) será chamada
+    stage: pre-build
+    script:
+        - docker build -t minha-imagem .
+        - docker tag minha-imagem pvreboucas/minha-imagem:latest
+        - docker push pvreboucas/minha-imagem:latest
+
+build_project:
+    stage: build
+    services:
+        - docker:dind
+        - mysql:5.7
+    #outra maneira de usar variáveis sem ter que cadastrar em configurações -> CI/CD -> variáveis    
+    variables:
+        #variáveis para o banco de dados MySql
+        MYSQL_USER: devops_dev
+        MYSQL_PASSWORD: mestre
+        MYSQL_DATABASE: todo_dev
+        MYSQL_ROOT_PASSWORD: senha
+
+        #variáveis para o projeto python
+        DB_NAME: 'todo_dev'
+        DB_USER: 'devops_dev'
+        DB_PASSWORD: 'mestre'
+        DB_PORT: '3306'
+        DB_HOST: 'mysql'
+        SECRET_KEY: 'r*5ltfzw-61ksdm41fuul8+hxs$86yo9%k1%k=(!@=-wv4qtyv'
+
+    image: pvreboucas/minha-imagem:latest
+    tags:
+        - executor-tarefas
+    
+    #é importante apontar a dependência deste job para que não haja erros de sincronização.
+    #este job será executado após que a dependência esteja online
+    dependencies:
+        - build-docker
+    script:
+        - echo "runner"
+        #script de pré-carga do projeto
+        - python manage.py makemigrations
+        - python manage.py migrate
+
+#stage de testes unitários para relatórios
+test-project:
+    stage: test
+    services:
+        - docker:dind
+        - mysql:5.7
+    #outra maneira de usar variáveis sem ter que cadastrar em configurações -> CI/CD -> variáveis    
+    variables:
+        #variáveis para o banco de dados MySql
+        MYSQL_USER: devops_dev
+        MYSQL_PASSWORD: mestre
+        MYSQL_DATABASE: todo_dev
+        MYSQL_ROOT_PASSWORD: senha
+
+        #variáveis para o projeto python
+        DB_NAME: 'todo_dev'
+        DB_USER: 'devops_dev'
+        DB_PASSWORD: 'mestre'
+        DB_PORT: '3306'
+        DB_HOST: 'mysql'
+        SECRET_KEY: 'r*5ltfzw-61ksdm41fuul8+hxs$86yo9%k1%k=(!@=-wv4qtyv'
+
+    dependencies:
+        - build-project
+    image: pvreboucas/minha-imagem:latest
+    tags:
+        - executor-tarefas
+    #script que chama os testes unitários no python
+    script:
+        - python -m unittest setUp
+
+
